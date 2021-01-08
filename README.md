@@ -1,6 +1,8 @@
 # bwonline
 Django+xadmin打造在线教育平台
 
+项目地址：https://www.cnblogs.com/derek1184405959/p/8590360.html
+
 系统概括：
 
 1.系统具有完整的用户登录注册以及找回密码功能，拥有完整个人中心。
