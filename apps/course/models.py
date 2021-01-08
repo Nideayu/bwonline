@@ -1,6 +1,8 @@
 from django.db import models
 from datetime import datetime
-from oranizations.models import CourseOrg
+from oranizations.models import CourseOrg, Teacher
+
+
 # Create your models here.
 # 课程app中需要四张表
 #
@@ -30,7 +32,9 @@ class Course(models.Model):
     add_time = models.DateTimeField("添加时间",default=datetime.now,)
     course_org = models.ForeignKey(CourseOrg, on_delete=models.CASCADE, verbose_name="所属机构", null=True, blank=True)
     category = models.CharField("课程类别",max_length=20, default="")
-
+    teacher = models.ForeignKey(Teacher, verbose_name='讲师', null=True, blank=True, on_delete=models.CASCADE)
+    youneed_know = models.CharField('课程须知', max_length=300, default='')
+    teacher_tell = models.CharField('老师告诉你', max_length=300, default='')
     class Meta:
         verbose_name = "课程"
         verbose_name_plural = verbose_name
