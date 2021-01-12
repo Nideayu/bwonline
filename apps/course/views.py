@@ -90,7 +90,8 @@ class CommentsView(View):
 
 
 class AddCommentsView(View):
-    '''用户评论'''
+    """用户评论"""
+
     def post(self, request):
         if not request.user.is_authenticated:
             # 未登录时返回json提示未登录，跳转到登录页面是在ajax中做的
