@@ -3,12 +3,15 @@ from captcha.fields import CaptchaField
 
 
 # 登录的表单验证
+from users.models import UserProfile
+
+
 class LoginForm(forms.Form):
     '''登录表单验证'''
 
     # 用户名和密码不能为空 True可以为空   False不额能为空
     username = forms.CharField(required=True)
-    password = forms.CharField(required=True, max_length=5)
+    password = forms.CharField(required=True, min_length=5)
 
 
 class RegisterForm(forms.Form):
@@ -16,8 +19,8 @@ class RegisterForm(forms.Form):
 
     email = forms.EmailField(required=True)
     password = forms.CharField(required=True, min_length=5)
-    # 验证码，字段里面可以自定义错误信息
-    captcha = CaptchaField()
+    # 验证码
+    captcha = CaptchaField(error_messages={'invalid': '验证码错误'})
 
 
 class ForgetPwdForm(forms.Form):
@@ -30,3 +33,17 @@ class ModifyPwdForm(forms.Form):
     '''重置密码'''
     password1 = forms.CharField(required=True,min_length=5)
     password2 = forms.CharField(required=True,min_length=5)
+
+
+class UploadImageForm(forms.ModelForm):
+    '''用户更改图像'''
+    class Meta:
+        model = UserProfile
+        fields = ['image']
+
+
+class UserInfoForm(forms.ModelForm):
+    '''个人中心信息修改'''
+    class Meta:
+        model = UserProfile
+        fields = ['nick_name','gender','birthday','address','mobile']

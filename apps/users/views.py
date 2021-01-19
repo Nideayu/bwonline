@@ -1,4 +1,7 @@
+import json
+
 from django.contrib.auth.hashers import make_password
+from django.http import HttpResponse
 from django.shortcuts import render
 from django.contrib.auth import authenticate,login
 # Django 提供内置的视图(view)函数用于处理登录和退出,
@@ -11,7 +14,7 @@ from users.models import UserProfile,EmailVerifyecord
 from django.db.models import Q
 
 from django.views.generic.base import View
-from users.form import LoginForm,RegisterForm,ForgetPwdForm,ModifyPwdForm
+from users.form import LoginForm, RegisterForm, ForgetPwdForm, ModifyPwdForm, UploadImageForm, UserInfoForm
 from apps.utils.email_send import send_register_eamil
 
 # Create your views here.
@@ -19,6 +22,9 @@ from apps.utils.email_send import send_register_eamil
 
 # 邮箱和用户名都可以登录
 # 基础ModelBackend类，因为它有authenticate方法
+from utils.mixin_utils import LoginRequiredMixin
+
+
 class CustomBackend(ModelBackend):
     def authenticate(self, request, username=None, password=None, **kwargs):
         try:
@@ -64,10 +70,11 @@ class LoginView(View):
         else:
             return render(request, 'login.html', {'login_form': login_form})
 
+
 # 激活用户
 # 根据邮箱找到对应的用户，然后设置is_active = True来实现
 class ActiveUserView(View):
-    def get(self,request,active_code):
+    def get(self, request, active_code):
         # 查询邮箱是否已经存在
         all_record = EmailVerifyecord.objects.filter(code= active_code)
 
@@ -87,7 +94,7 @@ class RegisterView(View):
     '''用户注册'''
     def get(self,request):
         register_form = RegisterForm()
-        return render(request,'register.html',{'register_form':register_form})
+        return render(request,'register.html', {'register_form': register_form})
 
     def post(self,request):
         register_form = RegisterForm(request.POST)
@@ -109,7 +116,7 @@ class RegisterView(View):
             send_register_eamil(user_name,'register')
             return render(request,'login.html')
         else:
-            return render(request,'register.html',{'register_form':register_form})
+            return render(request,'register.html',{'register_form': register_form})
 
 # 说明：
 #
@@ -168,3 +175,79 @@ class ModifyPwdView(View):
         else:
             email = request.POST.get("email", "")
             return render(request, "password_reset.html", {"email":email, "modify_form":modify_form })
+
+
+class UserinfoView(LoginRequiredMixin,View):
+    """用户个人信息"""
+
+    def get(self, request):
+        return render(request, 'usercenter-info.html')
+
+    def post(self, request):
+        user_info_form = UserInfoForm(request.POST, instance=request.user)
+        if user_info_form.is_valid():
+            user_info_form.save()
+            return HttpResponse('{"status":"success"}', content_type='application/json')
+        else:
+            return HttpResponse(json.dumps(user_info_form.errors), content_type='application/json')
+
+
+class UploadImageView(LoginRequiredMixin,View):
+    '''用户图像修改'''
+    def post(self,request):
+        #上传的文件都在request.FILES里面获取，所以这里要多传一个这个参数
+        image_form = UploadImageForm(request.POST,request.FILES)
+        if image_form.is_valid():
+            image = image_form.cleaned_data['image']
+            request.user.image = image
+            request.user.save()
+            return HttpResponse('{"status":"success"}', content_type='application/json')
+        else:
+            return HttpResponse('{"status":"fail"}', content_type='application/json')
+
+class UpdatePwdView(View):
+    """
+    个人中心修改用户密码
+    """
+    def post(self, request):
+        modify_form = ModifyPwdForm(request.POST)
+        if modify_form.is_valid():
+            pwd1 = request.POST.get("password1", "")
+            pwd2 = request.POST.get("password2", "")
+            if pwd1 != pwd2:
+                return HttpResponse('{"status":"fail","msg":"密码不一致"}',  content_type='application/json')
+            user = request.user
+            user.password = make_password(pwd2)
+            user.save()
+
+            return HttpResponse('{"status":"success"}', content_type='application/json')
+        else:
+            return HttpResponse(json.dumps(modify_form.errors), content_type='application/json')
+
+
+class SendEmailCodeView(LoginRequiredMixin, View):
+    '''发送邮箱修改验证码'''
+    def get(self,request):
+        email = request.GET.get('email', '')
+
+        if UserProfile.objects.filter(email=email):
+            return HttpResponse('{"email":"邮箱已存在"}', content_type='application/json')
+
+        send_register_eamil(email,'update_email')
+        return HttpResponse('{"status":"success"}', content_type='application/json')
+
+
+class UpdateEmailView(LoginRequiredMixin, View):
+    '''修改邮箱'''
+    def post(self, request):
+        email = request.POST.get("email", "")
+        code = request.POST.get("code", "")
+
+        existed_records = EmailVerifyecord.objects.filter(email=email, code=code, send_type='update_email')
+        if existed_records:
+            user = request.user
+            user.email = email
+            user.save()
+            return HttpResponse('{"status":"success"}', content_type='application/json')
+        else:
+            return HttpResponse('{"email":"验证码无效"}', content_type='application/json')

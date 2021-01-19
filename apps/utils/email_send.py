@@ -13,7 +13,7 @@ def random_str(random_length=8):
     length = len(chars) - 1
     random = Random()
     for i in range(random_length):
-        str += chars[random.randint(0,length)]
+        str += chars[random.randint(0, length)]
     return str
 
 
@@ -23,7 +23,10 @@ def send_register_eamil(email, send_type='register'):
     # 实列化一个EmailVerifyRecord对象
     email_record = EmailVerifyecord()
     # 生成随机的code放入链接
-    code = random_str(16)
+    if send_type == 'update_email':
+        code = random_str(4)
+    else:
+        code = random_str(16)
     email_record.code = code
     email_record.email = email
     email_record.send_type = send_type
@@ -48,6 +51,17 @@ def send_register_eamil(email, send_type='register'):
         # 如果发送成功
         if send_status:
             pass
+
+    elif send_type == "update_email":
+        email_title = "阿钰邮箱修改验证码"
+        email_body = "你的邮箱验证码为{0}".format(code)
+
+        # 使用Django内置函数完成邮件发送。四个参数：主题，邮件内容，从哪里发，接受者list
+        send_status = send_mail(email_title, email_body, EMAIL_FROM, [email])
+        # 如果发送成功
+        if send_status:
+            pass
+
 # 前面四个参数必须要，后面的参数可以为空
 #
 # 发送电子邮件的最简单方法是使用 django.core.mail.send_mail()。

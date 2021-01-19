@@ -92,7 +92,7 @@ TEMPLATES = [
 # tenezvjdgnalggbd
 # smtp邮件设置
 EMAIL_HOST = "smtp.qq.com"  # SMTP服务器主机
-EMAIL_PORT = 25             # 端口
+EMAIL_PORT = 25            # 端口
 EMAIL_HOST_USER = "1242469403@qq.com"       # 邮箱地址
 # lrdpwcnpkdxifjfd“EMAIL_HOST_PASSWORD”里面填写的就是下面生成的授权码，
 # 而不是你的邮箱密码
