@@ -1,8 +1,10 @@
+from django.db.models import Q
 from django.shortcuts import render
 from django.views.generic.base import View
 
+from course.models import Course
 from operation.models import UserFavorite
-from oranizations.models import CourseOrg,CityDict
+from oranizations.models import CourseOrg, CityDict, Teacher
 from pure_pagination import Paginator, EmptyPage, PageNotAnInteger
 from django.http import HttpResponse
 from .forms import UserAskForm
@@ -17,9 +19,15 @@ class OrgView(View):
 
         # 有多少家机构
         org_nums = all_orgs.count()
-
+        # 机构搜索功能
+        search_keywords = request.GET.get('keywords', '')
+        if search_keywords:
+            # 在name字段进行操作,做like语句的操作。i代表不区分大小写
+            # or操作使用Q
+            all_orgs = all_orgs.filter(Q(name__icontains=search_keywords) | Q(desc__icontains=search_keywords))
         # 所有城市
         all_citys = CityDict.objects.all()
+
 
         # 城市列表筛选
         city_id = request.GET.get('city', '')
@@ -53,7 +61,7 @@ class OrgView(View):
             page = request.GET.get('page', 1)
         except PageNotAnInteger:
             page = 1
-        # 这里指从allorg中取五个出来，每页显示5个
+        # 这里指从all_org中取五个出来，每页显示5个
         p = Paginator(all_orgs, 5, request=request)
         orgs = p.page(page)
 
@@ -189,3 +197,54 @@ class AddFavView(View):
                 return HttpResponse('{"status":"success", "msg":"已收藏"}', content_type='application/json')
             else:
                 return HttpResponse('{"status":"fail", "msg":"收藏出错"}', content_type='application/json')
+
+
+# 讲师列表
+class TeacherListView(View):
+    def get(self, request):
+        all_teachers = Teacher.objects.all()
+        # 总共有多少老师使用count进行统计
+        teacher_nums = all_teachers.count()
+
+        # 搜索功能
+        search_keywords = request.GET.get('keywords', '')
+        if search_keywords:
+            # 在name字段进行操作,做like语句的操作。i代表不区分大小写
+            # or操作使用Q
+            all_teachers = all_teachers.filter(name__icontains=search_keywords)
+        # 人气排序
+        sort = request.GET.get('sort','')
+        if sort:
+            if sort == 'hot':
+                all_teachers = all_teachers.order_by('-click_nums')
+
+        #讲师排行榜
+        sorted_teacher = Teacher.objects.all().order_by('-click_nums')[:3]
+        # 进行分页
+        # try:
+        #     page = request.GET.get('page', 1)
+        # except PageNotAnInteger:
+        #     page = 1
+        # p = Paginator(all_teachers, 1, request=request)
+        # teachers = p.page(page)
+        return render(request, "teachers-list.html", {
+            "all_teachers": all_teachers,
+            "teacher_nums": teacher_nums,
+            'sorted_teacher': sorted_teacher,
+            'sort': sort,
+        })
+
+
+# 讲师详情
+class TeacherDetailView(View):
+    def get(self, request, teacher_id):
+        teacher = Teacher.objects.get(id=int(teacher_id))
+        all_course = Course.objects.filter(teacher=teacher)
+
+        # 讲师排行榜
+        sorted_teacher = Teacher.objects.all().order_by('-click_nums')[:3]
+        return render(request, 'teacher-detail.html', {
+            'teacher': teacher,
+            'all_course': all_course,
+            'sorted_teacher': sorted_teacher,
+        })

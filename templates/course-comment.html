@@ -27,6 +27,7 @@
 {% endblock %}
 
 {% block content %}
+
     <div id="main">
         <div class="course-infos">
             <div class="w pr">
@@ -97,11 +98,8 @@
                                         </div>
                                     </li>
                                 {% endfor %}
-
-
                             </ul>
                         </div>
-
                     </div>
 
                     <div class="aside r">
@@ -216,14 +214,13 @@
     </div>
 {% endblock %}
 
-
 {% block custom_js %}
     <script type="text/javascript">
     //添加评论
     $('#js-pl-submit').on('click', function(){
-        var comments = $("#js-pl-textarea").val()
+        var comments = $("#js-pl-textarea").val();
         if(comments == ""){
-            alert("评论不能为空")
+            alert("评论不能为空");
             return
         }
         $.ajax({
