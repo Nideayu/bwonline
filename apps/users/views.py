@@ -1,22 +1,29 @@
 import json
 
 from django.contrib.auth.hashers import make_password
-from django.http import HttpResponse
+from django.core.paginator import PageNotAnInteger
+from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render
-from django.contrib.auth import authenticate,login
+from django.contrib.auth import authenticate, login, logout
 # Django 提供内置的视图(view)函数用于处理登录和退出,
 # Django提供两个函数来执行django.contrib.auth中的动作 : authenticate()和login()。
 
 # 认证给出的用户名和密码，使用 authenticate() 函数。它接受两个参数，用户名 username 和 密码 password ，
 # 并在密码对给出的用户名合法的情况下返回一个 User 对象。 如果密码不合法，authenticate()返回None。
 from django.contrib.auth.backends import ModelBackend
-from users.models import UserProfile,EmailVerifyecord
+from django.urls import reverse
+from pure_pagination import Paginator
+
+from course.models import Course
+from operation.models import UserCourse, UserFavorite, UserMessage
+from oranizations.models import CourseOrg, Teacher
+from users.models import UserProfile, EmailVerifyecord, Banner
 from django.db.models import Q
 
 from django.views.generic.base import View
 from users.form import LoginForm, RegisterForm, ForgetPwdForm, ModifyPwdForm, UploadImageForm, UserInfoForm
 from apps.utils.email_send import send_register_eamil
-
+from django.shortcuts import render_to_response
 # Create your views here.
 
 
@@ -39,13 +46,32 @@ class CustomBackend(ModelBackend):
             return None
 
 
+class IndexView(View):
+    '''首页'''
+    def get(self,request):
+        #轮播图
+        all_banners = Banner.objects.all().order_by('index')
+        #课程
+        courses = Course.objects.filter(is_banner=False)[:6]
+        #轮播课程
+        banner_courses = Course.objects.filter(is_banner=True)[:3]
+        #课程机构
+        course_orgs = Course.objects.all()[:15]
+        return render(request,'index.html',{
+            'all_banners':all_banners,
+            'courses':courses,
+            'banner_courses':banner_courses,
+            'course_orgs':course_orgs,
+        })
+
+
 class LoginView(View):
     '''用户登录'''
 
-    def get(self, request):
+    def get(self,request):
         return render(request, 'login.html')
 
-    def post(self, request):
+    def post(self,request):
         # 实例化
         login_form = LoginForm(request.POST)
         if login_form.is_valid():
@@ -59,16 +85,16 @@ class LoginView(View):
                 if user.is_active:
                     # 只有注册激活才能登录
                     login(request, user)
-                    return render(request, 'index.html')
+                    return HttpResponseRedirect(reverse('index'))
                 else:
                     return render(request, 'login.html', {'msg': '用户名或密码错误', 'login_form': login_form})
             # 只有当用户名或密码不存在时，才返回错误信息到前端
             else:
-                return render(request, 'login.html', {'msg': '用户名或密码错误', 'login_form': login_form})
+                return render(request, 'login.html', {'msg': '用户名或密码错误','login_form':login_form})
 
         # form.is_valid（）已经判断不合法了，所以这里不需要再返回错误信息到前端了
         else:
-            return render(request, 'login.html', {'login_form': login_form})
+            return render(request,'login.html',{'login_form':login_form})
 
 
 # 激活用户
@@ -251,3 +277,120 @@ class UpdateEmailView(LoginRequiredMixin, View):
             return HttpResponse('{"status":"success"}', content_type='application/json')
         else:
             return HttpResponse('{"email":"验证码无效"}', content_type='application/json')
+
+
+class MyCourseView(LoginRequiredMixin, View):
+    '''我的课程'''
+    def get(self, request):
+        user_courses = UserCourse.objects.filter(user=request.user)
+        return render(request, "usercenter-mycourse.html", {
+            "user_courses":user_courses,
+        })
+
+class MyFavOrgView(LoginRequiredMixin,View):
+    '''我收藏的课程机构'''
+
+    def get(self, request):
+        org_list = []
+        fav_orgs = UserFavorite.objects.filter(user=request.user, fav_type=2)
+        # 上面的fav_orgs只是存放了id。我们还需要通过id找到机构对象
+        for fav_org in fav_orgs:
+            # 取出fav_id也就是机构的id。
+            org_id = fav_org.fav_id
+            # 获取这个机构对象
+            org = CourseOrg.objects.get(id=org_id)
+            org_list.append(org)
+        return render(request, "usercenter-fav-org.html", {
+            "org_list": org_list,
+        })
+
+class MyFavTeacherView(LoginRequiredMixin, View):
+    '''我收藏的授课讲师'''
+
+    def get(self, request):
+        teacher_list = []
+        fav_teachers = UserFavorite.objects.filter(user=request.user, fav_type=3)
+        for fav_teacher in fav_teachers:
+            teacher_id = fav_teacher.fav_id
+            teacher = Teacher.objects.get(id=teacher_id)
+            teacher_list.append(teacher)
+        return render(request, "usercenter-fav-teacher.html", {
+            "teacher_list": teacher_list,
+        })
+
+
+class MyFavCourseView(LoginRequiredMixin,View):
+    """
+    我收藏的课程
+    """
+    def get(self, request):
+        course_list = []
+        fav_courses = UserFavorite.objects.filter(user=request.user, fav_type=1)
+        for fav_course in fav_courses:
+            course_id = fav_course.fav_id
+            course = Course.objects.get(id=course_id)
+            course_list.append(course)
+
+        return render(request, 'usercenter-fav-course.html', {
+            "course_list":course_list,
+        })
+
+
+class MyMessageView(LoginRequiredMixin, View):
+    '''我的消息'''
+
+    def get(self, request):
+        all_message = UserMessage.objects.filter(user= request.user.id)
+
+        try:
+            page = request.GET.get('page', 1)
+        except PageNotAnInteger:
+            page = 1
+        p = Paginator(all_message, 4,request=request)
+        messages = p.page(page)
+        return  render(request, "usercenter-message.html", {
+        "messages":messages,
+        })
+
+
+class LogoutView(View):
+    '''用户登出'''
+    def get(self,request):
+        logout(request)
+        from django.urls import reverse
+        return HttpResponseRedirect(reverse('index'))
+
+
+def pag_not_found(request):
+    # 全局404处理函数
+    response = render_to_response('404.html', {})
+    response.status_code = 404
+    return response
+
+
+def page_error(request):
+    # 全局500处理函数
+    from django.shortcuts import render_to_response
+    response = render_to_response('500.html', {})
+    response.status_code = 500
+    return response
+
+
+# class LoginUnsafeView(View):
+#     def get(self, request):
+#         return render(request, "login.html", {})
+#
+#     def post(self, request):
+#         user_name = request.POST.get("username", "")
+#         pass_word = request.POST.get("password", "")
+#
+#         import MySQLdb
+#         conn = MySQLdb.connect(host='127.0.0.1', user='root', passwd='root', db='mxonline', charset='utf8')
+#         cursor = conn.cursor()
+#         sql_select = "select * from users_userprofile where email='{0}' and password='{1}'".format(user_name, pass_word)
+#
+#         result = cursor.execute(sql_select)
+#         for row in cursor.fetchall():
+#             # 查询到用户
+#             pass
+#         print('test')

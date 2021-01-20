@@ -16,14 +16,14 @@ Including another URLconf
 from django.urls import path, include, re_path
 import xadmin
 from django.views.generic import TemplateView
-from apps.users.views import LoginView, RegisterView,ActiveUserView, ForgetPwdView,ModifyPwdView,ResetView
+from apps.users.views import LoginView, RegisterView, ActiveUserView, ForgetPwdView, ModifyPwdView, ResetView, IndexView
 from django.views.static import serve
 from bwonline.settings import MEDIA_ROOT
-
+# from bwonline.settings import STATIC_ROOT
 
 urlpatterns = [
     path('xadmin/', xadmin.site.urls),
-    path('', TemplateView.as_view(template_name='index.html'), name='index'),
+    path('', IndexView.as_view(), name='index'),
     path('login/', LoginView.as_view(), name='login'),
     path('register/', RegisterView.as_view(), name='register'),
     path('captcha/',include('captcha.urls')),
@@ -37,5 +37,13 @@ urlpatterns = [
     re_path(r'^media/(?P<path>.*)', serve, {"document_root": MEDIA_ROOT}),
     # 个人信息
     path('users/',include('users.urls', namespace='users')),
+    # #静态文件
+    # re_path(r'^static/(?P<path>.*)', serve, {"document_root": STATIC_ROOT}),
 
 ]
+
+
+# # 全局404页面配置
+# handler404 = 'users.views.pag_not_found'
+# # 全局500页面配置
+# handler500 = 'users.views.page_error'

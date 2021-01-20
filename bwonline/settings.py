@@ -27,7 +27,10 @@ SECRET_KEY = 'z!*q_bwko!mj(r4l&wl3&wf7aehxsi%61$nbcha+(sbmw%_alq'
 
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
+
+# #静态文件
+# STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 
 # Application definition
@@ -175,3 +178,5 @@ STATICFILES_DIRS = (
 # 设置上传文件的路径
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')   # 指定根目录
+
+
